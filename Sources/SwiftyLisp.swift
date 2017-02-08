@@ -40,7 +40,7 @@ import Foundation
  
  print(sexpr.eval()) // Prints the "a" atom
  
- The default builtins are: quote,car,cdr,cons,equal,atom,cond,lambda,label,defun.
+ The default builtins are: quote,car,cdr,cons,equal,atom,cond,lambda,label,define.
  
  Additionally the expression can be evaluated in a custom environment with a different set of named functions that
  trasform an input S-Expression in an output S-Expression:
@@ -51,9 +51,9 @@ import Foundation
  The default environment is available through the global constant `defaultEnvironment`
  
  */
-public enum SExpr{
-    case Atom(String)
-    case List([SExpr])
+public enum SExpr {
+    case atom(String)
+    case list([SExpr])
     
     /**
      Evaluates this SExpression with the given functions environment
@@ -61,30 +61,30 @@ public enum SExpr{
      - Parameter environment: A set of named functions or the default environment
      - Returns: the resulting SExpression after evaluation
      */
-    public func eval(with locals: [SExpr]? = nil, for values: [SExpr]? = nil) -> SExpr?{
+    public func eval(with locals: [SExpr]? = nil, for values: [SExpr]? = nil) -> SExpr? {
         var node = self
         
         switch node {
-        case .Atom:
+        case .atom:
             return evaluateVariable(node, with:locals, for:values)
-        case var .List(elements):
+        case .list(var elements):
             var skip = false
             
-            if elements.count > 1, case let .Atom(value) = elements[0] {
+            if elements.count > 1, case let .atom(value) = elements[0] {
                 skip = Builtins.mustSkip(value)
             }
             
             // Evaluate all subexpressions
             if !skip {
-                elements = elements.map{
+                elements = elements.map {
                     return $0.eval(with:locals, for:values)!
                 }
             }
-            node = .List(elements)
+            node = .list(elements)
             
-            // Obtain a a reference to the function represented by the first atom and apply it, local definitions shadow global ones
-            if elements.count > 0, case let .Atom(value) = elements[0], let f = localContext[value] ?? defaultEnvironment[value] {
-                let r = f(node,locals,values)
+            // Obtain a reference to the function represented by the first atom and apply it, local definitions shadow global ones
+            if elements.count > 0, case let .atom(value) = elements[0], let f = localContext[value] ?? defaultEnvironment[value] {
+                let r = f(node, locals, values)
                 return r
             }
             
@@ -98,7 +98,7 @@ public enum SExpr{
         if locals.contains(v) {
             // The current atom is a variable, replace it with its value
             return values[locals.index(of: v)!]
-        }else{
+        } else {
             // Not a variable, just return it
             return v
         }
@@ -108,15 +108,15 @@ public enum SExpr{
 
 
 /// Extension that implements a recursive Equatable, needed for the equal atom
-extension SExpr : Equatable {
-    public static func ==(lhs: SExpr, rhs: SExpr) -> Bool{
-        switch(lhs,rhs){
-        case let (.Atom(l),.Atom(r)):
-            return l==r
-        case let (.List(l),.List(r)):
-            guard l.count == r.count else {return false}
-            for (idx,el) in l.enumerated() {
-                if el != r[idx] {
+extension SExpr: Equatable {
+    public static func ==(lhs: SExpr, rhs: SExpr) -> Bool {
+        switch (lhs, rhs) {
+        case let (.atom(left), .atom(right)):
+            return left == right
+        case let (.list(left), .list(right)):
+            guard left.count == right.count else { return false }
+            for (index, element) in left.enumerated() {
+                if element != right[index] {
                     return false
                 }
             }
@@ -132,22 +132,22 @@ extension SExpr : Equatable {
 extension SExpr : CustomStringConvertible{
     public var description: String {
         switch self{
-        case let .Atom(value):
+        case let .atom(value):
             return "\(value) "
-        case let .List(subxexprs):
-            var res = "("
-            for expr in subxexprs{
-                res += "\(expr) "
+        case let .list(subexprs):
+            var result = "("
+            for expr in subexprs{
+                result += "\(expr) "
             }
-            res += ")"
-            return res
+            result += ")"
+            return result
         }
     }
 }
 
 
 /// Extension needed to convert string literals to a SExpr
-extension SExpr : ExpressibleByStringLiteral,ExpressibleByUnicodeScalarLiteral,ExpressibleByExtendedGraphemeClusterLiteral {
+extension SExpr : ExpressibleByStringLiteral, ExpressibleByUnicodeScalarLiteral, ExpressibleByExtendedGraphemeClusterLiteral {
     
     public init(stringLiteral value: String){
         self = SExpr.read(value)
@@ -170,10 +170,12 @@ extension SExpr {
     /**
      Read a LISP string and convert it to a hierarchical S-Expression
      */
-    public static func read(_ sexpr:String) -> SExpr{
+    public static func read(_ sexpr: String) -> SExpr {
         
-        enum Token{
-            case pOpen,pClose,textBlock(String)
+        enum Token {
+            case pOpen
+            case pClose
+            case textBlock(String)
         }
         
         /**
@@ -182,43 +184,43 @@ extension SExpr {
          - Parameter sexpr: Stringified S-Expression
          - Returns: Series of tokens
          */
-        func tokenize(_ sexpr:String) -> [Token] {
-            var res = [Token]()
+        func tokenize(_ sexpr: String) -> [Token] {
+            var result = [Token]()
             var tmpText = ""
             
             for c in sexpr.characters {
                 switch c {
                 case "(":
                     if tmpText != "" {
-                        res.append(.textBlock(tmpText))
+                        result.append(.textBlock(tmpText))
                         tmpText = ""
                     }
-                    res.append(.pOpen)
+                    result.append(.pOpen)
                 case ")":
                     if tmpText != "" {
-                        res.append(.textBlock(tmpText))
+                        result.append(.textBlock(tmpText))
                         tmpText = ""
                     }
-                    res.append(.pClose)
+                    result.append(.pClose)
                 case " ":
                     if tmpText != "" {
-                        res.append(.textBlock(tmpText))
+                        result.append(.textBlock(tmpText))
                         tmpText = ""
                     }
                 default:
                     tmpText.append(c)
                 }
             }
-            return res
+            return result
         }
         
-        func appendTo(list: SExpr?, node:SExpr) -> SExpr {
+        func append(to list: SExpr?, node:SExpr) -> SExpr {
             var list = list
             
-            if list != nil, case var .List(elements) = list! {
+            if list != nil, case var .list(elements) = list! {
                 elements.append(node)
-                list = .List(elements)
-            }else{
+                list = .list(elements)
+            } else {
                 list = node
             }
             return list!
@@ -232,53 +234,63 @@ extension SExpr {
          
          - Returns: Tuple with remaning tokens and resulting S-Expression
          */
-        func parse(_ tokens: [Token], node: SExpr? = nil) -> (remaining:[Token], subexpr:SExpr?) {
+        func parse(_ tokens: [Token], node: SExpr? = nil) -> (remaining: [Token], subexpr: SExpr?) {
             var tokens = tokens
             var node = node
             
             var i = 0
             repeat {
-                let t = tokens[i]
+                let token = tokens[i]
                 
-                switch t {
+                switch token {
                 case .pOpen:
                     //new sexpr
-                    let (tr,n) = parse( Array(tokens[(i+1)..<tokens.count]), node: .List([]))
-                    assert(n != nil) //Cannot be nil
+                    let (tr, n) = parse(Array(tokens[(i+1)..<tokens.count]), node: .list([]))
+                    assert(n != nil) // Cannot be nil
                     
                     (tokens, i) = (tr, 0)
-                    node = appendTo(list: node, node: n!)
+                    node = append(to: node, node: n!)
                     
                     if tokens.count != 0 {
                         continue
-                    }else{
+                    } else {
                         break
                     }
                 case .pClose:
                     //close sexpr
                     return ( Array(tokens[(i+1)..<tokens.count]), node)
                 case let .textBlock(value):
-                    node = appendTo(list: node, node: .Atom(value))
+                    node = append(to: node, node: .atom(value))
                 }
                 
                 i += 1
-            }while(tokens.count > 0)
+            } while(tokens.count > 0)
             
             return ([],node)
         }
         
         let tokens = tokenize(sexpr)
         let res = parse(tokens)
-        return res.subexpr ?? .List([])
+        return res.subexpr ?? .list([])
     }
 }
 
 
 /// Basic builtins
-fileprivate enum Builtins:String{
-    case quote,car,cdr,cons,equal,atom,cond,lambda,defun,list,
-         println,eval
-    
+fileprivate enum Builtins: String {
+    case quote
+    case car
+    case cdr
+    case cons
+    case equal
+    case atom
+    case cond
+    case lambda
+    case define
+    case list
+    case println
+    case eval
+
     /**
      True if the given parameter stop evaluation of sub-expressions.
      Sub expressions will be evaluated lazily by the operator.
@@ -289,7 +301,7 @@ fileprivate enum Builtins:String{
     public static func mustSkip(_ atom: String) -> Bool {
         return  (atom == Builtins.quote.rawValue) ||
                 (atom == Builtins.cond.rawValue) ||
-                (atom == Builtins.defun.rawValue) ||
+                (atom == Builtins.define.rawValue) ||
                 (atom == Builtins.lambda.rawValue)
     }
 }
@@ -300,154 +312,154 @@ public var localContext = [String: (SExpr, [SExpr]?, [SExpr]?)->SExpr]()
 
 /// Global default builtin functions environment
 ///
-/// Contains definitions for: quote,car,cdr,cons,equal,atom,cond,lambda,label,defun.
+/// Contains definitions for: quote,car,cdr,cons,equal,atom,cond,lambda,label,define.
 private var defaultEnvironment: [String: (SExpr, [SExpr]?, [SExpr]?)->SExpr] = {
     
     var env = [String: (SExpr, [SExpr]?, [SExpr]?)->SExpr]()
     env[Builtins.quote.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 2 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 2 else { return .list([]) }
         return parameters[1]
     }
     env[Builtins.car.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 2 else {return .List([])}
-        guard case let .List(elements) = parameters[1], elements.count > 0 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 2 else { return .list([]) }
+        guard case let .list(elements) = parameters[1], elements.count > 0 else { return .list([]) }
         
         return elements.first!
     }
     env[Builtins.cdr.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 2 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 2 else { return .list([]) }
         
-        guard case let .List(elements) = parameters[1], elements.count > 1 else {return .List([])}
+        guard case let .list(elements) = parameters[1], elements.count > 1 else { return .list([]) }
         
-        return .List(Array(elements.dropFirst(1)))
+        return .list(Array(elements.dropFirst(1)))
     }
     env[Builtins.cons.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 3 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 3 else { return .list([]) }
         
-        guard case .List(let elRight) = parameters[2] else {return .List([])}
+        guard case .list(let elRight) = parameters[2] else { return .list([]) }
         
-        switch parameters[1].eval(with: locals,for: values)!{
-        case let .Atom(p):
-            return .List([.Atom(p)]+elRight)
+        switch parameters[1].eval(with: locals,for: values)! {
+        case let .atom(p):
+            return .list([.atom(p)]+elRight)
         default:
-            return .List([])
+            return .list([])
         }
     }
     env[Builtins.equal.rawValue] = {params,locals,values in
-        guard case let .List(elements) = params, elements.count == 3 else {return .List([])}
+        guard case let .list(elements) = params, elements.count == 3 else { return .list([]) }
         
         var me = env[Builtins.equal.rawValue]!
         
         switch (elements[1].eval(with: locals,for: values)!,elements[2].eval(with: locals,for: values)!) {
-        case (.Atom(let elLeft),.Atom(let elRight)):
-            return elLeft == elRight ? .Atom("true") : .List([])
-        case (.List(let elLeft),.List(let elRight)):
-            guard elLeft.count == elRight.count else {return .List([])}
+        case (.atom(let elLeft),.atom(let elRight)):
+            return elLeft == elRight ? .atom("true") : .list([])
+        case (.list(let elLeft),.list(let elRight)):
+            guard elLeft.count == elRight.count else {return .list([])}
             for (idx,el) in elLeft.enumerated() {
-                let testeq:[SExpr] = [.Atom("Equal"),el,elRight[idx]]
-                if me(.List(testeq),locals,values) != SExpr.Atom("true") {
-                    return .List([])
+                let testeq:[SExpr] = [.atom("Equal"),el,elRight[idx]]
+                if me(.list(testeq),locals,values) != SExpr.atom("true") {
+                    return .list([])
                 }
             }
-            return .Atom("true")
+            return .atom("true")
         default:
-            return .List([])
+            return .list([])
         }
     }
     env[Builtins.atom.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 2 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 2 else { return .list([]) }
         
         switch parameters[1].eval(with: locals,for: values)! {
-        case .Atom:
-            return .Atom("true")
+        case .atom:
+            return .atom("true")
         default:
-            return .List([])
+            return .list([])
         }
     }
     env[Builtins.cond.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count > 1 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count > 1 else { return .list([]) }
         
         for el in parameters.dropFirst(1) {
-            guard case let .List(c) = el, c.count == 2 else {return .List([])}
+            guard case let .list(c) = el, c.count == 2 else { return .list([]) }
             
-            if c[0].eval(with: locals,for: values) != .List([]) {
+            if c[0].eval(with: locals,for: values) != .list([]) {
                 let res = c[1].eval(with: locals,for: values)
                 return res!
             }
         }
-        return .List([])
+        return .list([])
     }
-    env[Builtins.defun.rawValue] =  { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 4 else {return .List([])}
+    env[Builtins.define.rawValue] =  { params,locals,values in
+        guard case let .list(parameters) = params, parameters.count == 4 else { return .list([]) }
         
-        guard case let .Atom(lname) = parameters[1] else {return .List([])}
-        guard case let .List(vars) = parameters[2] else {return .List([])}
+        guard case let .atom(lname) = parameters[1] else { return .list([]) }
+        guard case let .list(vars) = parameters[2] else { return .list([]) }
         
         let lambda = parameters[3]
         
         let f: (SExpr, [SExpr]?, [SExpr]?)->SExpr = { params,locals,values in
-            guard case var .List(p) = params else {return .List([])}
+            guard case var .list(p) = params else { return .list([]) }
             p = Array(p.dropFirst(1))
             
             // Replace parameters in the lambda with values
             if let result = lambda.eval(with:vars, for:p){
                 return result
-            }else{
-                return .List([])
+            } else {
+                return .list([])
             }
         }
         
         localContext[lname] = f
-        return .List([])
+        return .list([])
     }
     env[Builtins.lambda.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 3 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 3 else { return .list([]) }
         
-        guard case let .List(vars) = parameters[1] else {return .List([])}
+        guard case let .list(vars) = parameters[1] else { return .list([]) }
         let lambda = parameters[2]
         //Assign a name for this temporary closure
         let fname = "TMP$"+String(arc4random_uniform(UInt32.max))
         
-        let f: (SExpr, [SExpr]?, [SExpr]?)->SExpr = { params,locals,values in
-            guard case var .List(p) = params else {return .List([])}
+        let f: (SExpr, [SExpr]?, [SExpr]?) -> SExpr = { params,locals,values in
+            guard case var .list(p) = params else {return .list([])}
             p = Array(p.dropFirst(1))
             //Remove temporary closure
             localContext[fname] = nil
             
             // Replace parameters in the lambda with values
-            if let result = lambda.eval(with:vars, for:p){
+            if let result = lambda.eval(with: vars, for: p){
                 return result
-            }else{
-                return .List([])
+            } else {
+                return .list([])
             }
         }
         
         localContext[fname] = f
-        return .Atom(fname)
+        return .atom(fname)
     }
-    //List implemented as a classic builtin instead of a series of cons
-    env[Builtins.list.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count > 1 else {return .List([])}
+    //list implemented as a classic builtin instead of a series of cons
+    env[Builtins.list.rawValue] = { params, locals, values in
+        guard case let .list(parameters) = params, parameters.count > 1 else { return .list([]) }
         var res: [SExpr] = []
         
         for el in parameters.dropFirst(1) {
             switch el {
-            case .Atom:
+            case .atom:
                 res.append(el)
-            case let .List(els):
+            case let .list(els):
                 res.append(contentsOf: els)
             }
         }
-        return .List(res)
+        return .list(res)
     }
     env[Builtins.println.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count > 1 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count > 1 else { return .list([]) }
     
         print(parameters[1].eval(with: locals,for: values)!)
-        return .List([])
+        return .list([])
     }
     env[Builtins.eval.rawValue] = { params,locals,values in
-        guard case let .List(parameters) = params, parameters.count == 2 else {return .List([])}
+        guard case let .list(parameters) = params, parameters.count == 2 else { return .list([]) }
         
         return parameters[1].eval(with: locals,for: values)!
     }

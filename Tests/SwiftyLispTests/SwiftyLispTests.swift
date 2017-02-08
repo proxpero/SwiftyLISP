@@ -27,63 +27,63 @@ import XCTest
 import SwiftyLisp
 
 class SwiftyLispTests: XCTestCase {
-    func eval(_ expr:String)->SExpr{
+    func eval(_ expr: String) -> SExpr {
         return SExpr(stringLiteral:expr).eval()!
     }
     
     func testBasicAtoms() {
-        XCTAssertEqual(eval("(car ( cdr  ( quote (1 2 \"aaaa\"   4 5 true 6 7 () ))))"), .Atom("2"))
-        XCTAssertEqual(eval("(cdr (quote (1 2 3)))"),.List([.Atom("2"),.Atom("3")]))
-        XCTAssertEqual(eval("(quote (quote(quote (1 2))))"),.List([ .Atom("quote"),.List([ .Atom("quote"), .List([.Atom("1"),.Atom("2")])])]))
-        XCTAssertEqual(eval("(quote (A B C))"), .List([.Atom("A"),.Atom("B"),.Atom("C")]))
-        XCTAssertEqual(eval("(equal A A)"), .Atom("true"))
-        XCTAssertEqual(eval("(equal () ())"), .Atom("true"))
-        XCTAssertEqual(eval("(equal true true)"), .Atom("true"))
-        XCTAssertEqual(eval("(equal (quote true) (atom A))"), .Atom("true"))
-        XCTAssertEqual(eval("(equal A ())"), .List([]))
-        XCTAssertEqual(eval("(quote A)"), .Atom("A"))
-        XCTAssertEqual(eval("(quote 1)"), .Atom("1"))
-        XCTAssertEqual(eval("(atom A)"), .Atom("true"))
-        XCTAssertEqual(eval("(atom (quote (A B)))"), .List([]))
-        XCTAssertEqual(eval("(cond ((atom (quote A)) (quote B)) ((quote true) (quote C)))"), .Atom("B"))
-        XCTAssertEqual(eval("(list (quote (A B C)))"), .List([.Atom("A"),.Atom("B"),.Atom("C")]))
-        XCTAssertEqual(eval("(list (quote A) (quote (B C)))"), .List([.Atom("A"),.Atom("B"),.Atom("C")]))
-        XCTAssertEqual(eval("(list (quote A) (quote B) (quote C)))"), .List([.Atom("A"),.Atom("B"),.Atom("C")]))
+        XCTAssertEqual(eval("(car (cdr (quote (1 2 \"aaaa\" 4 5 true 6 7 () ))))"), .atom("2"))
+        XCTAssertEqual(eval("(cdr (quote (1 2 3)))"),.list([.atom("2"),.atom("3")]))
+        XCTAssertEqual(eval("(quote (quote(quote (1 2))))"),.list([ .atom("quote"),.list([ .atom("quote"), .list([.atom("1"),.atom("2")])])]))
+        XCTAssertEqual(eval("(quote (A B C))"), .list([.atom("A"),.atom("B"),.atom("C")]))
+        XCTAssertEqual(eval("(equal A A)"), .atom("true"))
+        XCTAssertEqual(eval("(equal () ())"), .atom("true"))
+        XCTAssertEqual(eval("(equal true true)"), .atom("true"))
+        XCTAssertEqual(eval("(equal (quote true) (atom A))"), .atom("true"))
+        XCTAssertEqual(eval("(equal A ())"), .list([]))
+        XCTAssertEqual(eval("(quote A)"), .atom("A"))
+        XCTAssertEqual(eval("(quote 1)"), .atom("1"))
+        XCTAssertEqual(eval("(atom A)"), .atom("true"))
+        XCTAssertEqual(eval("(atom (quote (A B)))"), .list([]))
+        XCTAssertEqual(eval("(cond ((atom (quote A)) (quote B)) ((quote true) (quote C)))"), .atom("B"))
+        XCTAssertEqual(eval("(list (quote (A B C)))"), .list([.atom("A"),.atom("B"),.atom("C")]))
+        XCTAssertEqual(eval("(list (quote A) (quote (B C)))"), .list([.atom("A"),.atom("B"),.atom("C")]))
+        XCTAssertEqual(eval("(list (quote A) (quote B) (quote C)))"), .list([.atom("A"),.atom("B"),.atom("C")]))
     }
     
     func testFunctionDefinitions() {
-        XCTAssertEqual(eval("( (lambda (x y) (atom x)) () b)"), .List([]))
-        XCTAssertEqual(eval("( (lambda (x y) (atom x)) a b)"), .Atom("true"))
-        XCTAssertEqual(eval("(defun TEST (x y) (atom x))"), .List([]))
-        XCTAssertEqual(eval("(TEST a b)"), .Atom("true"))
-        XCTAssertEqual(eval("(TEST (quote (1 2 3)) b)"), .List([]))
+        XCTAssertEqual(eval("( (lambda (x y) (atom x)) () b)"), .list([]))
+        XCTAssertEqual(eval("( (lambda (x y) (atom x)) a b)"), .atom("true"))
+        XCTAssertEqual(eval("(define TEST (x y) (atom x))"), .list([]))
+        XCTAssertEqual(eval("(TEST a b)"), .atom("true"))
+        XCTAssertEqual(eval("(TEST (quote (1 2 3)) b)"), .list([]))
     }
     
     func testComplexExpressions() {
-        XCTAssertEqual(eval("((car (quote (atom))) A)"),.Atom("true"))
-        XCTAssertEqual(eval("((car (quote (atom))) ())"),.List([]))
-        XCTAssertEqual(eval("(defun ff (x) (cond ((atom x) x) (true (ff (car x)))))"), .List([])) //Recoursive function
-        XCTAssertEqual(eval("(ff (quote ((a b) c)))"), .Atom("a"))
-        XCTAssertEqual(eval("(eval (quote (atom (quote A)))"),.Atom("true"))
+        XCTAssertEqual(eval("((car (quote (atom))) A)"),.atom("true"))
+        XCTAssertEqual(eval("((car (quote (atom))) ())"),.list([]))
+        XCTAssertEqual(eval("(define ff (x) (cond ((atom x) x) (true (ff (car x)))))"), .list([])) //Recursive function
+        XCTAssertEqual(eval("(ff (quote ((a b) c)))"), .atom("a"))
+        XCTAssertEqual(eval("(eval (quote (atom (quote A)))"),.atom("true"))
     }
     
     func testAbbreviations() {
-        XCTAssertEqual(eval("(defun null (x) (equal x ()))"), .List([]))
-        XCTAssertEqual(eval("(defun cadr (x) (car (cdr x)))"), .List([]))
-        XCTAssertEqual(eval("(defun cddr (x) (cdr (cdr x)))"), .List([]))
-        XCTAssertEqual(eval("(defun and (p q) (cond (p q) (true ())))"), .List([]))
-        XCTAssertEqual(eval("(defun or (p q) (cond (p p) (q q) (true ())) )"), .List([]))
-        XCTAssertEqual(eval("(defun not (p) (cond (p ()) (true p))"), .List([]))
-        XCTAssertEqual(eval("(defun alt (x) (cond ((or (null x) (null (cdr x))) x) (true (cons (car x) (alt (cddr x))))))"), .List([]))
-        XCTAssertEqual(eval("(defun subst (x y z) (cond ((atom z) (cond ((equal z y) x) (true z))) (true (cons (subst x y (car z)) (subst x y (cdr z))))))"), .List([]))
-        XCTAssertEqual(eval("(null a)"), .List([]))
-        XCTAssertEqual(eval("(null ())"), .Atom("true"))
-        XCTAssertEqual(eval("(and a b)"), .Atom("b"))
-        XCTAssertEqual(eval("(or a ())"), .Atom("a"))
-        XCTAssertEqual(eval("(not a)"), .List([]))
-        XCTAssertEqual(eval("(alt (quote (A B C D E))"), .List([.Atom("A"),.Atom("C"),.Atom("E")]))
-        //XCTAssertEqual(eval("(subst (quote z) (quote x) (quote (x x x x)))"), .List([.Atom("z"),.Atom("z"),.Atom("z"),.Atom("z")]))
-        //XCTAssertEqual(eval("(subst (quote (plus x y)) (quote V) (quote(times x v)))"), .List([.Atom("times"),.Atom("x"),.List([.Atom("plus"),.Atom("x"),.Atom("y"),])]))
+        XCTAssertEqual(eval("(define null (x) (equal x ()))"), .list([]))
+        XCTAssertEqual(eval("(define cadr (x) (car (cdr x)))"), .list([]))
+        XCTAssertEqual(eval("(define cddr (x) (cdr (cdr x)))"), .list([]))
+        XCTAssertEqual(eval("(define and (p q) (cond (p q) (true ())))"), .list([]))
+        XCTAssertEqual(eval("(define or (p q) (cond (p p) (q q) (true ())) )"), .list([]))
+        XCTAssertEqual(eval("(define not (p) (cond (p ()) (true p))"), .list([]))
+        XCTAssertEqual(eval("(define alt (x) (cond ((or (null x) (null (cdr x))) x) (true (cons (car x) (alt (cddr x))))))"), .list([]))
+        XCTAssertEqual(eval("(define subst (x y z) (cond ((atom z) (cond ((equal z y) x) (true z))) (true (cons (subst x y (car z)) (subst x y (cdr z))))))"), .list([]))
+        XCTAssertEqual(eval("(null a)"), .list([]))
+        XCTAssertEqual(eval("(null ())"), .atom("true"))
+        XCTAssertEqual(eval("(and a b)"), .atom("b"))
+        XCTAssertEqual(eval("(or a ())"), .atom("a"))
+        XCTAssertEqual(eval("(not a)"), .list([]))
+        XCTAssertEqual(eval("(alt (quote (A B C D E))"), .list([.atom("A"),.atom("C"),.atom("E")]))
+        //XCTAssertEqual(eval("(subst (quote z) (quote x) (quote (x x x x)))"), .list([.atom("z"),.atom("z"),.atom("z"),.atom("z")]))
+        //XCTAssertEqual(eval("(subst (quote (plus x y)) (quote V) (quote(times x v)))"), .list([.atom("times"),.atom("x"),.list([.atom("plus"),.atom("x"),.atom("y"),])]))
     }
 }
 
